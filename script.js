@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         oh-my-mooc
 // @namespace    https://github.com/weijianxian/oh-my-mooc
-// @version      1.1.1
+// @version      1.1.2
 // @description  网易MOOC界面美化工具，去除广告和多余元素，自定义开启/关闭各种美化功能
 // @author       柠檬味氨水
 // @match        *://www.icourse163.org/*
@@ -51,14 +51,6 @@
                 type: 'css-hide',
                 category: 'homepage'
             },
-            'HOME_PAGE_hideTopBanner': {
-                name: '隐藏顶部黄条',
-                description: '删除首页顶部活动banner',
-                enabled: true,
-                selector: '#j-activityBanner',
-                type: 'css-delete',
-                category: 'homepage'
-            },
             'MY_COURSE_hideVIPboxAds': {
                 name: '移除右侧vip广告',
                 description: '删除掉右侧vip广告（期末考试会员，认证会员）',
@@ -89,6 +81,14 @@
                 enabled: true,
                 selector: '#j-activityRightBanner, #j-side-operation, #j-reactInjectAiMoocEntry',
                 type: 'css-hide',
+                category: 'global'
+            },
+            'GLOBAL_PAGE_hideTopBanner': {
+                name: '隐藏顶部黄条',
+                description: '删除首页顶部活动banner',
+                enabled: true,
+                selector: '#j-activityBanner',
+                type: 'css-delete',
                 category: 'global'
             },
             'REVIEW_autoFullScore': {
