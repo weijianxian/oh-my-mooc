@@ -55,6 +55,14 @@
                 type: 'css-delete',
                 category: 'my-course'
             },
+            'MY_COURSE_hideCourseAds': {
+                name: '移除右侧课程广告',
+                description: '删除掉右侧课程广告',
+                enabled: true,
+                selector: '.u-s-imgRec',
+                type: 'css-delete',
+                category: 'my-course'
+            },
             'GLOBAL_hideNavAds': {
                 name: '移除顶栏广告',
                 description: '删除导航栏中的推广项目（考研全科规划、小mooc图标、期末考试、搜索栏考研推荐）',
@@ -72,7 +80,6 @@
                 category: 'global'
             }
         },
-
         // 配置存储键名
         storageKey: 'MOOC_Beautifier_Settings',
 
