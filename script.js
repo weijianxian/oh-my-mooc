@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         oh-my-mooc
 // @namespace    https://github.com/weijianxian/oh-my-mooc
-// @version      1.0.0
+// @version      1.1.0
 // @description  网易MOOC界面美化工具，去除广告和多余元素，自定义开启/关闭各种美化功能
 // @author       柠檬味氨水
 // @match        *://www.icourse163.org/*
@@ -22,10 +22,22 @@
      * MOOC美化插件配置和功能管理
      */
     const MOOCBeautifier = {
+        // 配置项,可以根据需要添加更多评语
+        REVIEW_ASSIGNMENT_COMMENTS: [
+            '内容充实，条理清晰',
+            '论述完整，逻辑清楚',
+            '思路清晰，表达准确',
+            '结构合理，内容详实',
+            '观点明确，论据充分',
+            '完成度很高，值得学习',
+            '分析到位，总结很好'
+        ],
+
         // 模块分类
         categories: {
             'homepage': { name: '首页', icon: '🏠', url: '/' },
             "my-course": { name: '我的课程', icon: '🎓', url: '/home.htm' },
+            "judge": { name: '互评', icon: '✏', url: '^https?://www\\.icourse163\\.org/.*/learn/hw', urlType: 'regex' },
             'global': { name: '全局', icon: '🎨' }
         },
 
@@ -70,7 +82,7 @@
                 selector: '#web-nav-container .S4DH7 > ._3i8s0:nth-child(5), #web-nav-container .S4DH7 > ._3i8s0:nth-child(6), #web-nav-container .S4DH7 > ._3i8s0:has(img[title="期末考试"]), #web-nav-container ._18ylC:has(._3FFAt)',
                 type: 'css-delete',
                 category: 'global'
-            }, 
+            },
             'GLOBAL_hideRightBanner': {
                 name: '隐藏右侧浮动栏',
                 description: '删除右侧浮动活动栏',
@@ -78,10 +90,92 @@
                 selector: '#j-activityRightBanner, #j-side-operation, #j-reactInjectAiMoocEntry',
                 type: 'css-hide',
                 category: 'global'
+            },
+            'JUDGE_autoFullScore': {
+                name: '互评默认满分',
+                description: '自动选中每个评分项的最高分，并随机填写评语，需手动提交',
+                enabled: true,
+                type: 'js',
+                category: 'judge',
+                action: function () {
+
+                    function parseFloatEx(str) {
+                        var res = '';
+                        for (var i = 0; i < str.length; i++) {
+                            var chr = str.charAt(i);
+                            if ((chr >= '0' && chr <= '9') || chr === '.') {
+                                res += chr;
+                            }
+                        }
+                        return parseFloat(res);
+                    }
+
+                    function doAutoScore() {
+                        var evaluators = document.querySelectorAll('.u-evaluateItem.evaluateMode:not([data-scored])');
+                        evaluators.forEach(function (evaluator) {
+                            evaluator.dataset.scored = 'true';
+                            var scorePanels = evaluator.querySelectorAll('div.detail>div.s');
+                            scorePanels.forEach(function (panel) {
+                                var maxScore = -1;
+                                var maxIndex = -1;
+                                for (var j = 0; j < panel.children.length; j++) {
+                                    var radios = panel.children[j].querySelectorAll('input[type="radio"]');
+                                    radios.forEach(function (radio) {
+                                        var score = parseFloatEx(radio.value);
+                                        if (maxScore < score) {
+                                            maxScore = score;
+                                            maxIndex = j;
+                                        }
+                                    });
+                                }
+                                if (maxIndex !== -1) {
+                                    panel.children[maxIndex].querySelectorAll('input[type="radio"]').forEach(function (radio) {
+                                        radio.checked = true;
+                                        radio.dispatchEvent(new Event('change', { bubbles: true }));
+                                    });
+                                }
+                            });
+
+                            evaluator.querySelectorAll('textarea.j-textarea.inputtxt').forEach(function (ta) {
+                                if (!ta.value) {
+                                    ta.value = this.REVIEW_ASSIGNMENT_COMMENTS[Math.floor(Math.random() * this.REVIEW_ASSIGNMENT_COMMENTS.length)];
+                                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                                }
+                            });
+                        });
+                    }
+
+                    var observer = new MutationObserver(doAutoScore);
+                    observer.observe(document.body, { childList: true, subtree: true });
+                    doAutoScore();
+                }
+            },
+            'JUDGE_moveSubmitBtn': {
+                name: '提交按钮置顶',
+                description: '将底部的提交按钮移到作业内容上方，免去翻到底部的麻烦',
+                enabled: true,
+                type: 'js',
+                category: 'judge',
+                action: function () {
+                    function moveBtn() {
+                        var btnWrap = document.querySelector('.bottombtnwrap.j-btnwrap');
+                        var statusHead = document.querySelector('.j-evaluate-status-head');
+                        if (btnWrap && statusHead && !btnWrap.dataset.moved) {
+                            statusHead.parentNode.insertBefore(btnWrap, statusHead.nextSibling);
+                            btnWrap.dataset.moved = 'true';
+                        }
+                    }
+
+                    var observer = new MutationObserver(moveBtn);
+                    observer.observe(document.body, { childList: true, subtree: true });
+                    moveBtn();
+                }
             }
         },
         // 配置存储键名
         storageKey: 'MOOC_Beautifier_Settings',
+
+
 
         /**
          * 初始化设置
@@ -151,11 +245,16 @@
             Object.keys(this.features).forEach(key => {
                 if (settings[key]) {
                     const feature = this.features[key];
-                    const catUrl = this.categories[feature.category] && this.categories[feature.category].url;
-                    if (catUrl) {
-                        const matched = catUrl === '/'
-                            ? pathname === '/'
-                            : pathname.startsWith(catUrl);
+                    const cat = this.categories[feature.category];
+                    if (cat && cat.url) {
+                        let matched;
+                        if (cat.urlType === 'regex') {
+                            matched = new RegExp(cat.url).test(window.location.href);
+                        } else {
+                            matched = cat.url === '/'
+                                ? pathname === '/'
+                                : pathname.startsWith(cat.url);
+                        }
                         if (!matched) return;
                     }
                     if (feature.type === 'css-hide') {
