@@ -68,7 +68,7 @@
                 description: '删除右侧浮动活动栏',
                 enabled: true,
                 selector: '#j-activityRightBanner, #j-side-operation, #j-reactInjectAiMoocEntry',
-                type: 'css-delete',
+                type: 'css-hide',
                 category: 'global'
             }
         },
