@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         oh-my-mooc
 // @namespace    https://github.com/weijianxian/oh-my-mooc
-// @version      1.1.0
+// @version      1.1.1
 // @description  网易MOOC界面美化工具，去除广告和多余元素，自定义开启/关闭各种美化功能
 // @author       柠檬味氨水
 // @match        *://www.icourse163.org/*
@@ -37,7 +37,7 @@
         categories: {
             'homepage': { name: '首页', icon: '🏠', url: '/' },
             "my-course": { name: '我的课程', icon: '🎓', url: '/home.htm' },
-            "judge": { name: '互评', icon: '✏', url: '^https?://www\\.icourse163\\.org/.*/learn/hw', urlType: 'regex' },
+            "review": { name: '互评', icon: '✏', url: '^https?://www\\.icourse163\\.org/.*/learn/hw', urlType: 'regex' },
             'global': { name: '全局', icon: '🎨' }
         },
 
@@ -91,14 +91,13 @@
                 type: 'css-hide',
                 category: 'global'
             },
-            'JUDGE_autoFullScore': {
-                name: '互评默认满分',
-                description: '自动选中每个评分项的最高分，并随机填写评语，需手动提交',
+            'REVIEW_autoFullScore': {
+                name: '满分提交并下一份',
+                description: '在提交按钮右侧添加按钮，一键满分、提交并自动跳转下一份作业',
                 enabled: true,
                 type: 'js',
-                category: 'judge',
+                category: 'review',
                 action: function () {
-
                     function parseFloatEx(str) {
                         var res = '';
                         for (var i = 0; i < str.length; i++) {
@@ -111,9 +110,8 @@
                     }
 
                     function doAutoScore() {
-                        var evaluators = document.querySelectorAll('.u-evaluateItem.evaluateMode:not([data-scored])');
+                        var evaluators = document.querySelectorAll('.u-evaluateItem.evaluateMode');
                         evaluators.forEach(function (evaluator) {
-                            evaluator.dataset.scored = 'true';
                             var scorePanels = evaluator.querySelectorAll('div.detail>div.s');
                             scorePanels.forEach(function (panel) {
                                 var maxScore = -1;
@@ -138,19 +136,47 @@
 
                             evaluator.querySelectorAll('textarea.j-textarea.inputtxt').forEach(function (ta) {
                                 if (!ta.value) {
-                                    ta.value = this.REVIEW_ASSIGNMENT_COMMENTS[Math.floor(Math.random() * this.REVIEW_ASSIGNMENT_COMMENTS.length)];
+                                    ta.value = MOOCBeautifier.REVIEW_ASSIGNMENT_COMMENTS[Math.floor(Math.random() * MOOCBeautifier.REVIEW_ASSIGNMENT_COMMENTS.length)];
                                     ta.dispatchEvent(new Event('input', { bubbles: true }));
                                 }
                             });
                         });
                     }
 
-                    var observer = new MutationObserver(doAutoScore);
+                    function addFullScoreBtn() {
+                        var submitBtn = document.querySelector('.j-submitbtn');
+                        if (!submitBtn || submitBtn.dataset.btnAdded) return;
+                        submitBtn.dataset.btnAdded = 'true';
+
+                        var btn = document.createElement('a');
+                        btn.className = 'u-btn u-btn-default f-fl';
+                        btn.textContent = '满分提交并转下一份';
+                        btn.style.cssText = 'background:#667eea;color:#fff;border-color:#667eea;margin-left:6px;cursor:pointer;';
+                        btn.addEventListener('click', function () {
+                            doAutoScore();
+                            setTimeout(function () {
+                                submitBtn.click();
+                                var attempts = 0;
+                                var timer = setInterval(function () {
+                                    var nextBtn = document.querySelector('.j-gotonext');
+                                    if (nextBtn && nextBtn.offsetParent !== null) {
+                                        clearInterval(timer);
+                                        nextBtn.click();
+                                    } else if (++attempts > 20) {
+                                        clearInterval(timer);
+                                    }
+                                }, 500);
+                            }, 100);
+                        });
+                        submitBtn.parentNode.insertBefore(btn, submitBtn.nextSibling);
+                    }
+
+                    var observer = new MutationObserver(addFullScoreBtn);
                     observer.observe(document.body, { childList: true, subtree: true });
-                    doAutoScore();
+                    addFullScoreBtn();
                 }
             },
-            'JUDGE_moveSubmitBtn': {
+            'REVIEW_moveSubmitBtn': {
                 name: '提交按钮置顶',
                 description: '将底部的提交按钮移到作业内容上方，免去翻到底部的麻烦',
                 enabled: true,
@@ -159,9 +185,9 @@
                 action: function () {
                     function moveBtn() {
                         var btnWrap = document.querySelector('.bottombtnwrap.j-btnwrap');
-                        var statusHead = document.querySelector('.j-evaluate-status-head');
-                        if (btnWrap && statusHead && !btnWrap.dataset.moved) {
-                            statusHead.parentNode.insertBefore(btnWrap, statusHead.nextSibling);
+                        var list = document.querySelector('.u-homework-evaAction .j-list');
+                        if (btnWrap && list && !btnWrap.dataset.moved) {
+                            list.parentNode.insertBefore(btnWrap, list);
                             btnWrap.dataset.moved = 'true';
                         }
                     }
